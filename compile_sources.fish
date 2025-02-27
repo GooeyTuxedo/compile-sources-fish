@@ -5,7 +5,7 @@
 
 function compile_sources -d "Compile all source code in a directory into a single text file"
     # Process command line arguments
-    argparse -n compile_sources 'h/help' -- $argv
+    argparse -n compile_sources 'h/help' 'e/exclude=+' -- $argv
     
     if set -q _flag_help
         echo "Usage: compile_sources [source_directory] [output_file]"
@@ -14,8 +14,14 @@ function compile_sources -d "Compile all source code in a directory into a singl
         echo "Each file is preceded by its relative path and followed by several newlines."
         echo ""
         echo "Options:"
-        echo "  source_directory  The directory to traverse (default: current directory)"
-        echo "  output_file       The output file to generate (default: source_code_aggregate.txt)"
+        echo "  -h, --help           Show this help message"
+        echo "  -e, --exclude PATH   Paths to exclude (can be used multiple times)"
+        echo ""
+        echo "Arguments:"
+        echo "  source_directory     The directory to traverse (default: current directory)"
+        echo "  output_file          The output file to generate (default: source_code_aggregate.txt)"
+        echo ""
+        echo "Note: Hidden directories (starting with '.') are skipped by default"
         return 0
     end
     
@@ -42,19 +48,32 @@ function compile_sources -d "Compile all source code in a directory into a singl
     # Get the absolute path of source directory for relative path calculation
     set abs_source_dir (realpath $source_dir)
     
+    # Build the find command with exclusions
+    set find_cmd "find $source_dir -type f"
+    
+    # Skip hidden directories by default
+    set find_cmd "$find_cmd -not -path '*/\.*/*'"
+    
+    # Add user-specified exclusions
+    if set -q _flag_exclude
+        for exclude_path in $_flag_exclude
+            set find_cmd "$find_cmd -not -path '*$exclude_path*'"
+        end
+    end
+    
     # Counter for tracking progress
     set total_files 0
     set processed_files 0
     
     # Count total files first
-    for file in (find $source_dir -type f | grep -v "\.git/" | sort)
+    for file in (eval $find_cmd | sort)
         set total_files (math $total_files + 1)
     end
     
     echo "Found $total_files files to process."
     
     # Process all files
-    for file in (find $source_dir -type f | grep -v "\.git/" | sort)
+    for file in (eval $find_cmd | sort)
         # Skip binary files and other non-text files
         if file $file | grep -q "binary\|executable\|data"
             continue
@@ -77,3 +96,4 @@ function compile_sources -d "Compile all source code in a directory into a singl
     
     echo -e "\nDone! Generated $output_file with source code from $source_dir"
 end
+
