@@ -66,11 +66,7 @@ function compile_sources -d "Compile all source code in a directory into a singl
     if set -q _flag_ignore_file
         set ignore_file $_flag_ignore_file
         
-        # If file path is not absolute, treat it relative to source_dir
-        if not string match -q "/*" $ignore_file
-            set ignore_file "$source_dir/$ignore_file"
-        end
-        
+        # Treat the ignore file path as relative to current directory, not source dir
         if test -f $ignore_file
             echo "Reading exclusions from $ignore_file"
             
@@ -104,8 +100,11 @@ function compile_sources -d "Compile all source code in a directory into a singl
     set processed_files 0
     
     for file in $file_list
-        # Skip binary files and other non-text files
-        if file $file | grep -q "binary\|executable\|data"
+        # Skip binary files, images, audio, video, etc.
+        if not file -b --mime-type $file | grep -q "^text/"; and not file -b --mime-type $file | grep -q "application/json"
+            # Skip this file but still increment the counter
+            set processed_files (math $processed_files + 1)
+            printf "Skipping binary file %d/%d: %s\r" $processed_files $total_files $file
             continue
         end
         
