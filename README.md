@@ -47,6 +47,12 @@ compile_sources /path/to/source/code output.txt
 # Exclude specific paths
 compile_sources --exclude node_modules --exclude build /path/to/source output.txt
 
+# Use a .gitignore file (or any file with similar format)
+compile_sources --ignore-file .gitignore /path/to/source output.txt
+
+# Combine both approaches
+compile_sources --ignore-file .gitignore --exclude custom_dir /path/to/source output.txt
+
 # Display help
 compile_sources --help
 ```
@@ -64,6 +70,7 @@ Create a completion file at `~/.config/fish/completions/compile_sources.fish`:
 complete -c compile_sources -f -a "(__fish_complete_directories)" -d "Source directory"
 complete -c compile_sources -s h -l help -d "Show help message"
 complete -c compile_sources -s e -l exclude -r -d "Path to exclude"
+complete -c compile_sources -s i -l ignore-file -r -f -a "(__fish_complete_path)" -d "Exclusion patterns file (e.g. .gitignore)"
 ```
 
 This will enable directory tab completion when using the command.

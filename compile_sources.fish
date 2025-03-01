@@ -5,7 +5,7 @@
 
 function compile_sources -d "Compile all source code in a directory into a single text file"
     # Process command line arguments
-    argparse -n compile_sources 'h/help' 'e/exclude=+' -- $argv
+    argparse -n compile_sources 'h/help' 'e/exclude=+' 'i/ignore-file=' -- $argv
     
     if set -q _flag_help
         echo "Usage: compile_sources [source_directory] [output_file]"
@@ -14,8 +14,9 @@ function compile_sources -d "Compile all source code in a directory into a singl
         echo "Each file is preceded by its relative path and followed by several newlines."
         echo ""
         echo "Options:"
-        echo "  -h, --help           Show this help message"
-        echo "  -e, --exclude PATH   Paths to exclude (can be used multiple times)"
+        echo "  -h, --help                  Show this help message"
+        echo "  -e, --exclude PATH          Paths to exclude (can be used multiple times)"
+        echo "  -i, --ignore-file FILE      Read exclusion patterns from file (e.g., .gitignore)"
         echo ""
         echo "Arguments:"
         echo "  source_directory     The directory to traverse (default: current directory)"
@@ -48,32 +49,61 @@ function compile_sources -d "Compile all source code in a directory into a singl
     # Get the absolute path of source directory for relative path calculation
     set abs_source_dir (realpath $source_dir)
     
-    # Build the find command with exclusions
-    set find_cmd "find $source_dir -type f"
+    # Create a temporary file to hold exclusion patterns
+    set temp_exclude_file (mktemp)
     
     # Skip hidden directories by default
-    set find_cmd "$find_cmd -not -path '*/\.*/*'"
+    echo "*/.*/*" > $temp_exclude_file
     
     # Add user-specified exclusions
     if set -q _flag_exclude
         for exclude_path in $_flag_exclude
-            set find_cmd "$find_cmd -not -path '*$exclude_path*'"
+            echo "*$exclude_path*" >> $temp_exclude_file
         end
     end
     
-    # Counter for tracking progress
-    set total_files 0
-    set processed_files 0
-    
-    # Count total files first
-    for file in (eval $find_cmd | sort)
-        set total_files (math $total_files + 1)
+    # Read exclusions from ignore file (like .gitignore)
+    if set -q _flag_ignore_file
+        set ignore_file $_flag_ignore_file
+        
+        # If file path is not absolute, treat it relative to source_dir
+        if not string match -q "/*" $ignore_file
+            set ignore_file "$source_dir/$ignore_file"
+        end
+        
+        if test -f $ignore_file
+            echo "Reading exclusions from $ignore_file"
+            
+            # Read and process the ignore file with sed
+            # This removes comments, empty lines, and converts patterns to find-compatible format
+            sed -e '/^#/d' -e '/^$/d' -e '/^!/d' -e 's/\/$/\/*/' $ignore_file | sed 's/^/\*/' | sed 's/$/\*/' >> $temp_exclude_file
+        else
+            echo "Warning: Ignore file '$ignore_file' not found."
+        end
     end
     
+    # Use find with the -not -path option for each exclusion pattern
+    set find_args "-type" "f"
+    
+    # Add each exclusion from the temp file
+    for pattern in (cat $temp_exclude_file)
+        set -a find_args "-not" "-path" $pattern
+    end
+    
+    # Run the find command and sort results
+    set file_list (find $source_dir $find_args | sort)
+    
+    # Remove temporary exclusion file
+    rm $temp_exclude_file
+    
+    # Count total files
+    set total_files (count $file_list)
     echo "Found $total_files files to process."
     
     # Process all files
-    for file in (eval $find_cmd | sort)
+    set processed_files 0
+    
+    for file in $file_list
         # Skip binary files and other non-text files
         if file $file | grep -q "binary\|executable\|data"
             continue
@@ -96,4 +126,3 @@ function compile_sources -d "Compile all source code in a directory into a singl
     
     echo -e "\nDone! Generated $output_file with source code from $source_dir"
 end
-
