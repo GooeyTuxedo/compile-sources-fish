@@ -1,86 +1,108 @@
-# Installation Instructions for `compile_sources`
+# compile_sources
 
-To install the `compile_sources` command in Fish shell, follow these steps:
+A Fish shell function that traverses a directory of source code and generates a single text document with all source files. This tool is useful for creating documentation, preparing code reviews, or generating inputs for AI code analysis.
 
-## 1. Create the functions directory (if it doesn't exist)
+## Features
 
-```fish
-mkdir -p ~/.config/fish/functions
-```
+- Recursively processes all text files in a directory structure
+- Formats each file with its relative path as a header (`### ./path/to/file.ext`)
+- Automatically excludes binary files (images, audio, executables, etc.)
+- Skips hidden directories (those starting with `.`) by default
+- Supports custom exclusion patterns
+- Can use `.gitignore` or similar files for exclusion patterns
+- Shows progress while processing
 
-## 2. Save the function file
+## Installation
 
-Copy the entire function code to `~/.config/fish/functions/compile_sources.fish`:
+1. Create the directory for Fish functions (if it doesn't already exist):
+   ```
+   mkdir -p ~/.config/fish/functions
+   ```
 
-```fish
-# Create the file
-nano ~/.config/fish/functions/compile_sources.fish
-```
+2. Save the function file:
+   ```
+   # Copy the function code to this location
+   cp ./compile_sources.fish ~/.config/fish/functions/compile_sources.fish
+   ```
 
-Paste the code and save the file (Ctrl+X, then Y, then Enter).
+3. Make it executable:
+   ```
+   chmod +x ~/.config/fish/functions/compile_sources.fish
+   ```
 
-## 3. Make the file executable
+4. Reload your Fish shell or run:
+   ```
+   source ~/.config/fish/functions/compile_sources.fish
+   ```
 
-```fish
-chmod +x ~/.config/fish/functions/compile_sources.fish
-```
-
-## 4. Reload Fish shell or source the function
-
-Either restart your terminal or run:
-
-```fish
-source ~/.config/fish/functions/compile_sources.fish
-```
+5. (Optional) Set up tab completion by creating a file at `~/.config/fish/completions/compile_sources.fish`:
+   ```
+   complete -c compile_sources -f -a "(__fish_complete_directories)" -d "Source directory"
+   complete -c compile_sources -s h -l help -d "Show help message"
+   complete -c compile_sources -s e -l exclude -r -d "Path to exclude"
+   complete -c compile_sources -s i -l ignore-file -r -f -a "(__fish_complete_path)" -d "Exclusion patterns file (e.g. .gitignore)"
+   ```
 
 ## Usage
 
-Now you can use the command as requested:
+Basic usage:
+```
+compile_sources [source_directory] [output_file]
+```
+
+### Examples
 
 ```fish
-# Basic usage with defaults
+# Compile files from current directory to default output file (source_code_aggregate.txt)
 compile_sources
 
-# With source directory and output file
-compile_sources /path/to/source/code output.txt
+# Specify source directory and output file
+compile_sources ~/projects/myapp code_review.txt
 
-# Exclude specific paths
-compile_sources --exclude node_modules --exclude build /path/to/source output.txt
+# Exclude specific directories
+compile_sources --exclude node_modules --exclude build
 
-# Use a .gitignore file (or any file with similar format)
-compile_sources --ignore-file .gitignore /path/to/source output.txt
+# Use a .gitignore file for exclusions
+compile_sources --ignore-file .gitignore
 
-# Combine both approaches
-compile_sources --ignore-file .gitignore --exclude custom_dir /path/to/source output.txt
+# Combine exclusion methods
+compile_sources --ignore-file .gitignore --exclude "temp_*" ~/projects/myapp output.txt
 
-# Display help
+# Get help
 compile_sources --help
 ```
 
-Note: Hidden directories (those starting with a dot, like `.git`, `.vscode`, etc.) are skipped by default.
+### Output Format
 
-## Customizing Further (Optional)
-
-### Add completion support
-
-Create a completion file at `~/.config/fish/completions/compile_sources.fish`:
-
-```fish
-# ~/.config/fish/completions/compile_sources.fish
-complete -c compile_sources -f -a "(__fish_complete_directories)" -d "Source directory"
-complete -c compile_sources -s h -l help -d "Show help message"
-complete -c compile_sources -s e -l exclude -r -d "Path to exclude"
-complete -c compile_sources -s i -l ignore-file -r -f -a "(__fish_complete_path)" -d "Exclusion patterns file (e.g. .gitignore)"
-```
-
-This will enable directory tab completion when using the command.
-
-### Add to Fish config for system-wide installation
-
-If you want to make this available to all users on your system, you can place the function file in:
+The generated file will contain all source files with headers and spacing:
 
 ```
-/usr/share/fish/functions/
+### ./src/main.js
+// Source code content here
+...
+
+
+### ./src/utils/helpers.js
+// Source code content here
+...
+
+
+### ./src/components/App.jsx
+// Source code content here
+...
 ```
 
-Note: This requires root permissions.
+## Options
+
+| Option | Description |
+|--------|-------------|
+| -h, --help | Show help message |
+| -e, --exclude PATH | Paths to exclude (can be used multiple times) |
+| -i, --ignore-file FILE | Read exclusion patterns from file (e.g., .gitignore) |
+
+## Notes
+
+- The function automatically skips binary files by checking MIME types
+- JSON files are treated as text files and included
+- Hidden directories (starting with `.`) are skipped by default
+- The ignore file is processed relative to the current working directory
